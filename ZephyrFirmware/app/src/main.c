@@ -19,8 +19,7 @@ void hex_string_to_bytes(const char *hex, uint8_t *bytes, size_t len) {
 }
 
 struct bt_le_adv_param adv_param = {
-    .options = BT_LE_ADV_OPT_USE_IDENTITY,
-    /* Advertising interval in 0.625ms steps: 3200*0.625ms=2s */
+    .options = 0, 
     .interval_min = 3200,
     .interval_max = 3200,
 };
@@ -47,21 +46,38 @@ static const struct bt_data adv_data[] = {
 };
 
 int main(void) {
-  int err;
+    int err;
 
-  hex_string_to_bytes(eid_string, fmdn_service_data.eid, 20);
+    hex_string_to_bytes(eid_string, fmdn_service_data.eid, 20);
 
-  err = bt_enable(NULL);
-  if (err) {
-    LOG_ERR("Bluetooth init failed (err %d)\n", err);
-    return 0;
-  }
+    err = bt_enable(NULL);
+    if (err) {
+        LOG_ERR("Bluetooth init failed (err %d)\n", err);
+        return 0;
+    }
 
-  printk("Bluetooth initialized\n");
+    printk("Bluetooth initialized. Starting rotation loop...\n");
 
-  err = bt_le_adv_start(&adv_param, adv_data, ARRAY_SIZE(adv_data), NULL, 0);
-  if (err) {
-    LOG_ERR("Advertising failed to start (err %d)", err);
-    return 0;
-  }
+
+    while (1) {
+        err = bt_le_adv_start(&adv_param, adv_data, ARRAY_SIZE(adv_data), NULL, 0);
+        if (err) {
+            LOG_ERR("Advertising failed to start (err %d)", err);
+            k_sleep(K_SECONDS(10));
+            continue;
+        }
+        
+        printk("Advertising started with NEW address\n");
+
+        k_sleep(K_SECONDS(900));
+
+        err = bt_le_adv_stop();
+        if (err) {
+            LOG_ERR("Advertising failed to stop (err %d)", err);
+        }
+        
+        printk("Advertising stopped. Rotating...\n");
+        
+        k_sleep(K_SECONDS(1));
+    }
 }
